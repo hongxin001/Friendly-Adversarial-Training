@@ -60,7 +60,7 @@ def train(model, train_loader, optimizer, tau):
         output = model(output_adv)
 
         # calculate standard adversarial training loss
-        loss = nn.CrossEntropyLoss(reduction='mean')(output, output_target)
+        loss = nn.CrossEntropyLoss(reduction='mean')(output, target)
 
         loss_sum += loss.item()
         loss.backward()
