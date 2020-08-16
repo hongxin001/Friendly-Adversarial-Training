@@ -9,7 +9,7 @@ from earlystop import earlystop
 import numpy as np
 from utils import Logger
 import attack_generator as attack
-
+from tqdm import tqdm
 parser = argparse.ArgumentParser(description='PyTorch Friendly Adversarial Training')
 parser.add_argument('--epochs', type=int, default=120, metavar='N', help='number of epochs to train')
 parser.add_argument('--weight_decay', '--wd', default=2e-4, type=float, metavar='W')
@@ -49,7 +49,7 @@ if not os.path.exists(out_dir):
 def train(model, train_loader, optimizer, tau):
     starttime = datetime.datetime.now()
     loss_sum = 0
-    for batch_idx, (data, target) in enumerate(train_loader):
+    for batch_idx, (data, target) in enumerate(tqdm(train_loader)):
         data, target = data.cuda(), target.cuda()
 
         # Get friendly adversarial training data via early-stopped PGD

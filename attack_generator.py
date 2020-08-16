@@ -1,6 +1,6 @@
 import numpy as np
 from models import *
-
+from tqdm import tqdm
 def cwloss(output, target,confidence=50, num_classes=10):
     # Compute the probability of the label class versus the maximum other
     # The same implementation as in repo CAT https://github.com/sunblaze-ucb/curriculum-adversarial-training-CAT
@@ -43,7 +43,7 @@ def eval_clean(model, test_loader):
     test_loss = 0
     correct = 0
     with torch.no_grad():
-        for data, target in test_loader:
+        for data, target in tqdm(test_loader):
             data, target = data.cuda(), target.cuda()
             output = model(data)
             test_loss += nn.CrossEntropyLoss(reduction='mean')(output, target).item()
@@ -62,7 +62,7 @@ def eval_robust(model, test_loader, perturb_steps, epsilon, step_size, loss_fn, 
     test_loss = 0
     correct = 0
     with torch.enable_grad():
-        for data, target in test_loader:
+        for data, target in tqdm(test_loader):
             data, target = data.cuda(), target.cuda()
             x_adv = pgd(model,data,target,epsilon,step_size,perturb_steps,loss_fn,category,rand_init=rand_init)
             output = model(x_adv)
