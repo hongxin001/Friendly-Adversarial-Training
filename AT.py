@@ -49,15 +49,12 @@ if not os.path.exists(out_dir):
 def train(model, train_loader, optimizer, tau):
     starttime = datetime.datetime.now()
     loss_sum = 0
-    bp_count = 0
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.cuda(), target.cuda()
 
         # Get friendly adversarial training data via early-stopped PGD
-        output_adv, output_target, output_natural, count = earlystop(model, data, target, step_size=args.step_size,
-                                                                     epsilon=args.epsilon, perturb_steps=args.num_steps, tau=tau,
-                                                                     randominit_type="uniform_randominit", loss_fn='cent', rand_init=args.rand_init, omega=args.omega)
-        bp_count += count
+        output_adv = attack.pgd(model, data, target, epsilon=args.epsilon, step_size=args.step_size, num_steps=args.num_steps,
+                                            loss_fn="cent", category="Madry", rand_init=True)
         model.train()
         optimizer.zero_grad()
         output = model(output_adv)
@@ -69,11 +66,10 @@ def train(model, train_loader, optimizer, tau):
         loss.backward()
         optimizer.step()
 
-    bp_count_avg = bp_count / len(train_loader.dataset)
     endtime = datetime.datetime.now()
     time = (endtime - starttime).seconds
 
-    return time, loss_sum, bp_count_avg
+    return time, loss_sum
 
 def adjust_tau(epoch, dynamictau):
     tau = args.tau
@@ -170,7 +166,7 @@ cw_acc = 0
 best_epoch = 0
 for epoch in range(start_epoch, args.epochs):
     adjust_learning_rate(optimizer, epoch + 1)
-    train_time, train_loss, bp_count_avg = train(model, train_loader, optimizer, adjust_tau(epoch + 1, args.dynamictau))
+    train_time, train_loss = train(model, train_loader, optimizer, adjust_tau(epoch + 1, args.dynamictau))
 
     ## Evalutions the same as DAT.
     loss, test_nat_acc = attack.eval_clean(model, test_loader)
@@ -179,11 +175,10 @@ for epoch in range(start_epoch, args.epochs):
     loss, cw_acc = attack.eval_robust(model, test_loader, perturb_steps=30, epsilon=0.031, step_size=0.031 / 4,loss_fn="cw", category="Madry", rand_init=True)
 
     print(
-        'Epoch: [%d | %d] | Train Time: %.2f s | BP Average: %.2f | Natural Test Acc %.2f | FGSM Test Acc %.2f | PGD20 Test Acc %.2f | CW Test Acc %.2f |\n' % (
+        'Epoch: [%d | %d] | Train Time: %.2f s | Natural Test Acc %.2f | FGSM Test Acc %.2f | PGD20 Test Acc %.2f | CW Test Acc %.2f |\n' % (
         epoch + 1,
         args.epochs,
         train_time,
-        bp_count_avg,
         test_nat_acc,
         fgsm_acc,
         test_pgd20_acc,
@@ -195,7 +190,6 @@ for epoch in range(start_epoch, args.epochs):
     save_checkpoint({
         'epoch': epoch + 1,
         'state_dict': model.state_dict(),
-        'bp_avg': bp_count_avg,
         'test_nat_acc': test_nat_acc,
         'test_pgd20_acc': test_pgd20_acc,
         'optimizer': optimizer.state_dict(),
